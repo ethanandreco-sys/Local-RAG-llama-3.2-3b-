@@ -11,31 +11,29 @@ from langchain_core.embeddings import Embeddings
 st.set_page_config(page_title="Local Text RAG Chatbot", layout="wide")
 st.title("🤖 Chat with Your Raw Text (Local RAG)")
 
-# ⚡ FIXED: Custom Embeddings Driver tailored perfectly for modern nested arrays
+# FIXED: Normalized Indentation on the Custom Embeddings Driver class
 class StableNgrokEmbeddings(Embeddings):
     def __init__(self, model="nomic-embed-text", base_url="", headers=None):
         self.model = model
         self.url = f"{base_url}/api/embed"
         self.headers = headers or {}
 
-        def embed_documents(self, texts):
+    def embed_documents(self, texts):
         embeddings = []
         for text in texts:
             payload = {"model": self.model, "input": text}
             response = requests.post(self.url, json=payload, headers=self.headers)
             response.raise_for_status()
-            # ⚡ FIXED: Added [0] to extract the clean inner vector array loop
+            # Extracts the clean inner 1D vector out of the nested array loop
             embeddings.append(response.json()["embeddings"][0])
         return embeddings
 
-
-        def embed_query(self, text):
+    def embed_query(self, text):
         payload = {"model": self.model, "input": text}
         response = requests.post(self.url, json=payload, headers=self.headers)
         response.raise_for_status()
-        # ⚡ FIXED: Added [0] to extract the clean inner vector array loop
+        # Extracts the clean inner 1D vector out of the nested array loop
         return response.json()["embeddings"][0]
-
 
 # Initialize vector store and LLM once
 @st.cache_resource
@@ -96,7 +94,6 @@ if retriever is not None:
     rag_chain = (
         {"context": retriever | format_docs, "question": RunnablePassthrough()}
 
-
         | prompt
         | llm
         | StrOutputParser()
@@ -104,7 +101,6 @@ if retriever is not None:
 else:
     rag_chain = (
         {"context": lambda x: "No context available.", "question": RunnablePassthrough()}
-
 
         | prompt
         | llm
