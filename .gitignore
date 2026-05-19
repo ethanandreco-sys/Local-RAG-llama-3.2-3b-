@@ -1,6 +1,5 @@
-venv
-.env
+venv/
+chroma_db/
 __pycache__/
-/datasets
-/chroma_db
-snapshot.txt
+.DS_Store
+source_text.txt
