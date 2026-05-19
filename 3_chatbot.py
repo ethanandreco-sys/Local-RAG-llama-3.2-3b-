@@ -10,20 +10,26 @@ from langchain_core.output_parsers import StrOutputParser
 st.set_page_config(page_title="Local Text RAG Chatbot", layout="wide")
 st.title("🤖 Chat with Your Raw Text (Local RAG)")
 
-# Initialize vector store and LLM once
+# Update ONLY the initialize_rag() block inside 3_chatbot.py:
 @st.cache_resource
 def initialize_rag():
-    # ⚡ Use your exact active ngrok forwarding link
-    public_ollama_url = "https://outthink-ravishing-cymbal.ngrok-free.dev" 
+    # Use your exact active ngrok forwarding link
+    public_ollama_url = "https://ngrok-free.dev" 
     
-    # ⚡ FIXED: Flattened dictionary to bypass the Pydantic ValidationError
-    ngrok_headers = {"ngrok-skip-browser-warning": "true"}
+    # ⚡ FIXED: Nest the headers inside client_kwargs to satisfy langchain-ollama's schema
+    ollama_config = {
+        "client_kwargs": {
+            "headers": {
+                "ngrok-skip-browser-warning": "true"
+            }
+        }
+    }
     
-    # Route embedding math to your Mac mini over the web with direct root headers
+    # Route embedding math to your Mac mini over the web safely
     embeddings = OllamaEmbeddings(
         model="nomic-embed-text",
         base_url=public_ollama_url,
-        headers=ngrok_headers
+        **ollama_config
     )
     
     vector_store = Chroma(
@@ -32,14 +38,15 @@ def initialize_rag():
         collection_name="local_rag_collection"
     )
     
-    # Route LLM text generation to your Mac mini over the web with direct root headers
+    # Route LLM text generation to your Mac mini over the web safely
     llm = ChatOllama(
         model="llama3.2:3b", 
         temperature=0.2,
         base_url=public_ollama_url,
-        headers=ngrok_headers
+        **ollama_config
     )
     return vector_store.as_retriever(search_kwargs={"k": 3}), llm
+
 
 
 retriever, llm = initialize_rag()
