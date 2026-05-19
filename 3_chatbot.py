@@ -38,7 +38,7 @@ prompt = ChatPromptTemplate.from_messages([
     ("human", "{question}"),
 ])
 
-# ⚡ FIXED: Create RAG pipeline using clean, modern LCEL syntax (No legacy chains required)
+# Create RAG pipeline using clean, modern LCEL syntax
 rag_chain = (
     {"context": retriever | format_docs, "question": RunnablePassthrough()}
 
@@ -54,8 +54,8 @@ if user_query := st.chat_input("Ask a question about your input text:"):
 
     with st.chat_message("assistant"):
         with st.spinner("Analyzing text chunks..."):
-            # Fetch source context manually for the UI expander box
-            source_docs = retriever.get_relevant_documents(user_query)
+            # FIXED: Uses invoke() instead of get_relevant_documents()
+            source_docs = retriever.invoke(user_query)
             
             # Execute the modern LCEL RAG chain
             response_text = rag_chain.invoke(user_query)
