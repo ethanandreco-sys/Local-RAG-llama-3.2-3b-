@@ -2,13 +2,14 @@ import streamlit as st
 from langchain_chroma import Chroma
 from langchain_community.embeddings import OllamaEmbeddings
 from langchain_community.chat_models import ChatOllama
-from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 
 st.set_page_config(page_title="Local Text RAG Chatbot", layout="wide")
 st.title("🤖 Chat with Your Raw Text (Local RAG)")
 
+# Initialize vector store and LLM once
 @st.cache_resource
 def initialize_rag():
     embeddings = OllamaEmbeddings(model="nomic-embed-text")
@@ -22,6 +23,11 @@ def initialize_rag():
 
 retriever, llm = initialize_rag()
 
+# Format helper for context documents
+def format_docs(docs):
+    return "\n\n".join(doc.page_content for doc in docs)
+
+# Define structural system prompt
 system_prompt = (
     "You are an expert assistant. Answer the user's question using exclusively the provided context. "
     "If you do not know the answer based on the context, state that you do not know.\n\n"
@@ -29,22 +35,34 @@ system_prompt = (
 )
 prompt = ChatPromptTemplate.from_messages([
     ("system", system_prompt),
-    ("human", "{input}"),
+    ("human", "{question}"),
 ])
 
-question_answer_chain = create_stuff_documents_chain(llm, prompt)
-rag_chain = create_retrieval_chain(retriever, question_answer_chain)
+# ⚡ FIXED: Create RAG pipeline using clean, modern LCEL syntax (No legacy chains required)
+rag_chain = (
+    {"context": retriever | format_docs, "question": RunnablePassthrough()}
 
+    | prompt
+    | llm
+    | StrOutputParser()
+)
+
+# Handle user input via chat interface
 if user_query := st.chat_input("Ask a question about your input text:"):
     with st.chat_message("user"):
         st.markdown(user_query)
 
     with st.chat_message("assistant"):
         with st.spinner("Analyzing text chunks..."):
-            response = rag_chain.invoke({"input": user_query})
-            st.markdown(response["answer"])
+            # Fetch source context manually for the UI expander box
+            source_docs = retriever.get_relevant_documents(user_query)
             
+            # Execute the modern LCEL RAG chain
+            response_text = rag_chain.invoke(user_query)
+            st.markdown(response_text)
+            
+            # Display source grounding snippets
             with st.expander("See Referenced Context Chunks"):
-                for idx, doc in enumerate(response["context"]):
+                for idx, doc in enumerate(source_docs):
                     st.caption(f"Chunk {idx + 1}:")
                     st.write(doc.page_content)
