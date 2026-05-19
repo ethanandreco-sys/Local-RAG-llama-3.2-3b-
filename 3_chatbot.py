@@ -1,7 +1,8 @@
 import streamlit as st
 from langchain_chroma import Chroma
-from langchain_community.embeddings import OllamaEmbeddings
-from langchain_community.chat_models import ChatOllama
+#  Modern imports that natively support the 'headers' parameter
+from langchain_ollama import OllamaEmbeddings
+from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
