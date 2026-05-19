@@ -9,17 +9,37 @@ from langchain_core.output_parsers import StrOutputParser
 st.set_page_config(page_title="Local Text RAG Chatbot", layout="wide")
 st.title("🤖 Chat with Your Raw Text (Local RAG)")
 
-# Initialize vector store and LLM once
+# Update ONLY the initialize_rag() block inside 3_chatbot.py:
 @st.cache_resource
 def initialize_rag():
-    embeddings = OllamaEmbeddings(model="nomic-embed-text")
+    # ⚡ Use your exact active ngrok forwarding link
+    public_ollama_url = "https://ngrok-free.dev" 
+    
+    # ⚡ FIXED: Added client_kwargs to inject the browser warning bypass header
+    bypass_headers = {"client_kwargs": {"headers": {"ngrok-skip-browser-warning": "true"}}}
+    
+    # Route embedding math to your Mac mini over the web with bypass headers
+    embeddings = OllamaEmbeddings(
+        model="nomic-embed-text",
+        base_url=public_ollama_url,
+        **bypass_headers
+    )
+    
     vector_store = Chroma(
         persist_directory="./chroma_db", 
         embedding_function=embeddings,
         collection_name="local_rag_collection"
     )
-    llm = ChatOllama(model="llama3.2:3b", temperature=0.2)
+    
+    # Route LLM text generation to your Mac mini over the web with bypass headers
+    llm = ChatOllama(
+        model="llama3.2:3b", 
+        temperature=0.2,
+        base_url=public_ollama_url,
+        **bypass_headers
+    )
     return vector_store.as_retriever(search_kwargs={"k": 3}), llm
+
 
 retriever, llm = initialize_rag()
 
