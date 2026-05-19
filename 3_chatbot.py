@@ -1,28 +1,52 @@
 import os
 import streamlit as st
+import requests
 from langchain_chroma import Chroma
-from langchain_ollama import OllamaEmbeddings
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.embeddings import Embeddings
 
 st.set_page_config(page_title="Local Text RAG Chatbot", layout="wide")
 st.title("🤖 Chat with Your Raw Text (Local RAG)")
+
+# ⚡ FIXED: Custom Embeddings Driver to bypass langchain-ollama package bugs
+class StableNgrokEmbeddings(Embeddings):
+    def __init__(self, model="nomic-embed-text", base_url="", headers=None):
+        self.model = model
+        self.url = f"{base_url}/api/embeddings"
+        self.headers = headers or {}
+
+    def embed_documents(self, texts):
+        embeddings = []
+        for text in texts:
+            payload = {"model": self.model, "prompt": text}
+            response = requests.post(self.url, json=payload, headers=self.headers)
+            response.raise_for_status()
+            embeddings.append(response.json()["embedding"])
+        return embeddings
+
+    def embed_query(self, text):
+        payload = {"model": self.model, "prompt": text}
+        response = requests.post(self.url, json=payload, headers=self.headers)
+        response.raise_for_status()
+        return response.json()["embedding"]
 
 # Initialize vector store and LLM once
 @st.cache_resource
 def initialize_rag():
     public_ollama_url = "https://ngrok-free.dev" 
-    ollama_config = {"client_kwargs": {"headers": {"ngrok-skip-browser-warning": "true"}}}
+    ngrok_headers = {"ngrok-skip-browser-warning": "true"}
+    ollama_config = {"client_kwargs": {"headers": ngrok_headers}}
     
-    embeddings = OllamaEmbeddings(
+    # Use our custom stable driver for the database lookups
+    embeddings = StableNgrokEmbeddings(
         model="nomic-embed-text",
         base_url=public_ollama_url,
-        **ollama_config
+        headers=ngrok_headers
     )
     
-    # SAFEGUARD: Automatically build directory paths if they are missing on the server
     db_path = "./chroma_db"
     if not os.path.exists(db_path):
         os.makedirs(db_path, exist_ok=True)
@@ -65,7 +89,6 @@ prompt = ChatPromptTemplate.from_messages([
     ("human", "{question}"),
 ])
 
-# FIXED: Check if retriever exists before building the LCEL pipeline chain
 if retriever is not None:
     rag_chain = (
         {"context": retriever | format_docs, "question": RunnablePassthrough()}
@@ -75,7 +98,6 @@ if retriever is not None:
         | StrOutputParser()
     )
 else:
-    # Standalone model fallback chain if database context is unreachable
     rag_chain = (
         {"context": lambda x: "No context available.", "question": RunnablePassthrough()}
 
@@ -91,11 +113,9 @@ if user_query := st.chat_input("Ask a question about your input text:"):
 
     with st.chat_message("assistant"):
         with st.spinner("Analyzing text chunks..."):
-            # Execute the modern LCEL RAG chain safely
             response_text = rag_chain.invoke(user_query)
             st.markdown(response_text)
             
-            # Display source grounding snippets if retriever is active
             if retriever is not None:
                 try:
                     source_docs = retriever.invoke(user_query)
