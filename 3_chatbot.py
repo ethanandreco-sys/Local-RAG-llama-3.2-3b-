@@ -11,27 +11,34 @@ from langchain_core.embeddings import Embeddings
 st.set_page_config(page_title="Local Text RAG Chatbot", layout="wide")
 st.title("🤖 Chat with Your Raw Text (Local RAG)")
 
-# ⚡ FIXED: Custom Embeddings Driver to bypass langchain-ollama package bugs
+# ⚡ FIXED: Custom Embeddings Driver explicitly tailored for modern Ollama routes
 class StableNgrokEmbeddings(Embeddings):
     def __init__(self, model="nomic-embed-text", base_url="", headers=None):
         self.model = model
-        self.url = f"{base_url}/api/embeddings"
+        # Updated endpoint route to use the ultra-stable modern API
+        self.url = f"{base_url}/api/embed"
         self.headers = headers or {}
 
     def embed_documents(self, texts):
         embeddings = []
         for text in texts:
-            payload = {"model": self.model, "prompt": text}
+            # Updated parameter keys to match modern Ollama schema definitions
+            payload = {"model": self.model, "input": text}
             response = requests.post(self.url, json=payload, headers=self.headers)
             response.raise_for_status()
-            embeddings.append(response.json()["embedding"])
+            
+            # Extract nested data layout out of response payload
+            embeddings.append(response.json()["embeddings"][0])
         return embeddings
 
     def embed_query(self, text):
-        payload = {"model": self.model, "prompt": text}
+        # Updated parameter keys to match modern Ollama schema definitions
+        payload = {"model": self.model, "input": text}
         response = requests.post(self.url, json=payload, headers=self.headers)
         response.raise_for_status()
-        return response.json()["embedding"]
+        
+        # Extract nested data layout out of response payload
+        return response.json()["embeddings"][0]
 
 # Initialize vector store and LLM once
 @st.cache_resource
@@ -40,7 +47,7 @@ def initialize_rag():
     ngrok_headers = {"ngrok-skip-browser-warning": "true"}
     ollama_config = {"client_kwargs": {"headers": ngrok_headers}}
     
-    # Use our custom stable driver for the database lookups
+    # Point driver directly to the active tunnel bridge network
     embeddings = StableNgrokEmbeddings(
         model="nomic-embed-text",
         base_url=public_ollama_url,
@@ -93,6 +100,7 @@ if retriever is not None:
     rag_chain = (
         {"context": retriever | format_docs, "question": RunnablePassthrough()}
 
+
         | prompt
         | llm
         | StrOutputParser()
@@ -100,6 +108,7 @@ if retriever is not None:
 else:
     rag_chain = (
         {"context": lambda x: "No context available.", "question": RunnablePassthrough()}
+
 
         | prompt
         | llm
