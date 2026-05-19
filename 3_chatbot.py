@@ -1,6 +1,6 @@
 import streamlit as st
 from langchain_chroma import Chroma
-#  Modern imports that natively support the 'headers' parameter
+# Modern imports that natively support the 'headers' parameter
 from langchain_ollama import OllamaEmbeddings
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
@@ -10,20 +10,20 @@ from langchain_core.output_parsers import StrOutputParser
 st.set_page_config(page_title="Local Text RAG Chatbot", layout="wide")
 st.title("🤖 Chat with Your Raw Text (Local RAG)")
 
-# Update ONLY the initialize_rag() block inside 3_chatbot.py:
+# Initialize vector store and LLM once
 @st.cache_resource
 def initialize_rag():
     # ⚡ Use your exact active ngrok forwarding link
-    public_ollama_url = "https://ngrok-free.dev" 
+    public_ollama_url = "https://outthink-ravishing-cymbal.ngrok-free.dev" 
     
-    # ⚡ FIXED: Added client_kwargs to inject the browser warning bypass header
-    bypass_headers = {"client_kwargs": {"headers": {"ngrok-skip-browser-warning": "true"}}}
+    # ⚡ FIXED: Flattened dictionary to bypass the Pydantic ValidationError
+    ngrok_headers = {"ngrok-skip-browser-warning": "true"}
     
-    # Route embedding math to your Mac mini over the web with bypass headers
+    # Route embedding math to your Mac mini over the web with direct root headers
     embeddings = OllamaEmbeddings(
         model="nomic-embed-text",
         base_url=public_ollama_url,
-        **bypass_headers
+        headers=ngrok_headers
     )
     
     vector_store = Chroma(
@@ -32,12 +32,12 @@ def initialize_rag():
         collection_name="local_rag_collection"
     )
     
-    # Route LLM text generation to your Mac mini over the web with bypass headers
+    # Route LLM text generation to your Mac mini over the web with direct root headers
     llm = ChatOllama(
         model="llama3.2:3b", 
         temperature=0.2,
         base_url=public_ollama_url,
-        **bypass_headers
+        headers=ngrok_headers
     )
     return vector_store.as_retriever(search_kwargs={"k": 3}), llm
 
@@ -75,7 +75,7 @@ if user_query := st.chat_input("Ask a question about your input text:"):
 
     with st.chat_message("assistant"):
         with st.spinner("Analyzing text chunks..."):
-            # FIXED: Uses invoke() instead of get_relevant_documents()
+            # Uses invoke() instead of get_relevant_documents()
             source_docs = retriever.invoke(user_query)
             
             # Execute the modern LCEL RAG chain
