@@ -24,18 +24,18 @@ class StableNgrokEmbeddings(Embeddings):
             payload = {"model": self.model, "input": text}
             response = requests.post(self.url, json=payload, headers=self.headers)
             response.raise_for_status()
-            
-            # FIXED: Extracting index [0] handles the nested list shape perfectly
+            # ⚡ FIXED: Added [0] to extract the clean inner vector array loop
             embeddings.append(response.json()["embeddings"][0])
         return embeddings
 
-    def embed_query(self, text):
+
+        def embed_query(self, text):
         payload = {"model": self.model, "input": text}
         response = requests.post(self.url, json=payload, headers=self.headers)
         response.raise_for_status()
-        
-        # FIXED: Extracting index [0] handles the nested list shape perfectly
+        # ⚡ FIXED: Added [0] to extract the clean inner vector array loop
         return response.json()["embeddings"][0]
+
 
 # Initialize vector store and LLM once
 @st.cache_resource
