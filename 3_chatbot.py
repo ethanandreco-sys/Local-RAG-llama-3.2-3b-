@@ -27,7 +27,8 @@ class StableNgrokEmbeddings(Embeddings):
                 payload = {"model": self.model, "input": text}
                 response = requests.post(self.url, json=payload, headers=self.headers, timeout=30)
                 response.raise_for_status()
-                embeddings.append(response.json()["embeddings"])
+                # Extract inner 1D array from modern 2D matrix
+                embeddings.append(response.json()["embeddings"][0])
             except Exception:
                 embeddings.append([0.0] * 768)
         return embeddings
@@ -37,11 +38,12 @@ class StableNgrokEmbeddings(Embeddings):
             payload = {"model": self.model, "input": text}
             response = requests.post(self.url, json=payload, headers=self.headers, timeout=30)
             response.raise_for_status()
-            return response.json()["embeddings"]
+            # Extract inner 1D array from modern 2D matrix
+            return response.json()["embeddings"][0]
         except Exception:
             return [0.0] * 768
 
-# ⚡ DIRECT PROXY LLM CHAT DRIVER 
+# ⚡ DIRECT PROXY LLM CHAT DRIVER
 class StableNgrokChatModel(BaseChatModel):
     model: str = "llama3.2:3b"
     base_url: str = ""
@@ -50,9 +52,15 @@ class StableNgrokChatModel(BaseChatModel):
     def _generate(self, messages: list[BaseMessage], stop=None, run_manager=None, **kwargs) -> ChatResult:
         url = f"{self.base_url}/api/chat"
         
+        # FIXED: Corrected mapping syntax roles to exact strings Ollama expects
         formatted_messages = []
         for msg in messages:
-            role = "user" if msg.type == "human" else "system" if msg.type == "system" else "assistant"
+            if msg.type == "human":
+                role = "user"
+            elif msg.type == "system":
+                role = "system"
+            else:
+                role = "assistant"
             formatted_messages.append({"role": role, "content": msg.content})
             
         payload = {
@@ -76,7 +84,7 @@ class StableNgrokChatModel(BaseChatModel):
 # Initialize components once
 @st.cache_resource
 def initialize_rag():
-    # 🚨 REPLACE: Paste your exact active ngrok forwarding domain endpoint link here
+    # 🚨 ALWAYS CHECK: Make sure this matches your running ngrok forwarding link
     public_ollama_url = "https://ngrok-free.dev" 
     ngrok_headers = {"ngrok-skip-browser-warning": "true"}
     
