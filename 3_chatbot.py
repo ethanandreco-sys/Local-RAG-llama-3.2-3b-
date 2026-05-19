@@ -18,7 +18,7 @@ class StableNgrokEmbeddings(Embeddings):
         self.url = f"{base_url}/api/embed"
         self.headers = headers or {}
 
-    def embed_documents(self, texts):
+        def embed_documents(self, texts):
         embeddings = []
         for text in texts:
             payload = {"model": self.model, "input": text}
