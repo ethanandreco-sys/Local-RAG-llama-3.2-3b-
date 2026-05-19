@@ -11,33 +11,30 @@ from langchain_core.embeddings import Embeddings
 st.set_page_config(page_title="Local Text RAG Chatbot", layout="wide")
 st.title("🤖 Chat with Your Raw Text (Local RAG)")
 
-# ⚡ FIXED: Custom Embeddings Driver explicitly tailored for modern Ollama routes
+# ⚡ FIXED: Custom Embeddings Driver tailored perfectly for modern nested arrays
 class StableNgrokEmbeddings(Embeddings):
     def __init__(self, model="nomic-embed-text", base_url="", headers=None):
         self.model = model
-        # Updated endpoint route to use the ultra-stable modern API
         self.url = f"{base_url}/api/embed"
         self.headers = headers or {}
 
     def embed_documents(self, texts):
         embeddings = []
         for text in texts:
-            # Updated parameter keys to match modern Ollama schema definitions
             payload = {"model": self.model, "input": text}
             response = requests.post(self.url, json=payload, headers=self.headers)
             response.raise_for_status()
             
-            # Extract nested data layout out of response payload
+            # FIXED: Extracting index [0] handles the nested list shape perfectly
             embeddings.append(response.json()["embeddings"][0])
         return embeddings
 
     def embed_query(self, text):
-        # Updated parameter keys to match modern Ollama schema definitions
         payload = {"model": self.model, "input": text}
         response = requests.post(self.url, json=payload, headers=self.headers)
         response.raise_for_status()
         
-        # Extract nested data layout out of response payload
+        # FIXED: Extracting index [0] handles the nested list shape perfectly
         return response.json()["embeddings"][0]
 
 # Initialize vector store and LLM once
@@ -47,7 +44,6 @@ def initialize_rag():
     ngrok_headers = {"ngrok-skip-browser-warning": "true"}
     ollama_config = {"client_kwargs": {"headers": ngrok_headers}}
     
-    # Point driver directly to the active tunnel bridge network
     embeddings = StableNgrokEmbeddings(
         model="nomic-embed-text",
         base_url=public_ollama_url,
