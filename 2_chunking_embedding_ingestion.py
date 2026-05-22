@@ -1,5 +1,4 @@
 import os
-import shutil
 import chromadb
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -17,19 +16,14 @@ def main():
         print(f"❌ Error: '{file_path}' not found. Please create it and add your raw text data.")
         return
 
-    if os.path.exists(db_directory):
-        print("🧹 Removing old database instance to avoid structural mismatch...")
-        shutil.rmtree(db_directory)
-
     print("📄 Loading raw local text data...")
     loader = TextLoader(file_path, encoding="utf-8")
     documents = loader.load()
 
     print("✂️ Splitting text into context chunks...")
-    # Kept your chunk size, but 4500 is very large. Consider 1000-2000 if your LLM struggles.
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=4500, 
-        chunk_overlap=500,
+        chunk_size=4000, 
+        chunk_overlap=200,
         separators=["\n\n", "\n", " ", ""]
     )
     chunks = text_splitter.split_documents(documents)
@@ -38,7 +32,16 @@ def main():
     print("🧠 Initializing Local Ollama Embedding Driver...")
     embeddings = OllamaEmbeddings(model="nomic-embed-text")
 
-    print("🗄️ Creating Vector Store and ingesting chunks locally...")
+    print("🧹 Force-clearing old collection data via Chroma API (Bypasses OS file locks)...")
+    # This reaches inside the DB to explicitly delete the old collection name
+    client = chromadb.PersistentClient(path=db_directory)
+    try:
+        client.delete_collection(name=collection_name)
+        print("🗑️ Existing collection wiped clean.")
+    except Exception:
+        print("✨ No existing collection found. Starting fresh.")
+
+    print("🗄️ Ingesting fresh text chunks into ChromaDB...")
     vector_store = Chroma.from_documents(
         documents=chunks,
         embedding=embeddings,
@@ -46,7 +49,7 @@ def main():
         collection_name=collection_name
     )
             
-    print(f"✅ Success! All chunks are safely stored locally in {db_directory}!")
+    print(f"✅ Success! 100% refreshed chunks stored in {db_directory}!")
 
 if __name__ == "__main__":
     main()

@@ -1,15 +1,5 @@
-# Local Virtual Environment Python Cache
 venv/
 .venv/
-env/
-__pycache__/
-*.pyc
-
-# Local System Caches
-.DS_Store
-.vscode/
-.idea/
-
-# Local Vector Databases & Raw Context Data
 chroma_db/
-source_text.txt
+__pycache__/
+*.txt

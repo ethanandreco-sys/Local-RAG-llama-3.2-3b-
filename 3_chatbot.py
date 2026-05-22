@@ -10,10 +10,12 @@ st.set_page_config(page_title="Local Text RAG Chatbot", layout="wide")
 st.title("🤖 Chat with Your Raw Text (100% Local RAG)")
 
 # Initialize components once safely using standard local paths
-@st.cache_resource
+
+# @st.cache_resource
 def initialize_rag():
     db_path = "./chroma_db"
     collection_name = "local_rag_collection"
+    # ... rest of your code remains exactly the same
     
     # 1. Local Embeddings Setup (No ngrok, targets localhost by default)
     embeddings = OllamaEmbeddings(model="nomic-embed-text")
